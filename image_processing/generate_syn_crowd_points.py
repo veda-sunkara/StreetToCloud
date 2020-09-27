@@ -45,7 +45,7 @@ def sample_crowd_points(img, clusters='low', noise='low'):
     points += n
 
     # clip values to edge of image
-    points = np.clip(points, a_min=0, a_max=img.shape[0])
+    points = np.clip(points, a_min=0, a_max=img.shape[0]-1)
 
     return points
 
