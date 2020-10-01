@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 from PIL import Image
 
+import torch
 from torch.utils.data import Dataset
 import torchvision.transforms as transforms
 import torchvision.transforms.functional as TF
@@ -19,6 +20,7 @@ def load_image(path):
 def load_target(path):
     img = rasterio.open(path).read()
     img[img == -1] = 255
+
     img = np.rollaxis(img, 0, 3).astype(np.uint8)
     img = Image.fromarray(img[:,:,0])
     return img
@@ -28,6 +30,16 @@ def create_cs_img(h, w, cs_points):
     cs_img[cs_points] = 1
     cs_img = Image.fromarray(cs_img.astype(np.uint8))
     return cs_img
+
+def convert_pil_to_tensor(pil_img):
+    np_img = np.array(pil_img)
+    if len(np_img.shape) == 3:
+        np_img = np_img.transpose(2, 0, 1)
+    else:
+        np_img = np_img[np.newaxis,:,:]
+    tensor = torch.from_numpy(np_img)
+    return tensor
+
 
 class Data_Transforms(object):
     def __init__(self, crop_size=[256, 256]):
@@ -58,16 +70,19 @@ class Data_Transforms(object):
             if not cs_img is None:
                 cs_img = TF.vflip(cs_img)
 
-        img = TF.pil_to_tensor(img).float()
+        # img = TF.pil_to_tensor(img).float()
+        img = convert_pil_to_tensor(img).float()
+
         # normalize image
         norm = transforms.Normalize([0.6851, 0.5235], [0.0820, 0.1102])
         img = norm(img)
 
-        mask = TF.pil_to_tensor(mask).long()
+        # mask = TF.pil_to_tensor(mask).long()
+        mask = convert_pil_to_tensor(mask).long()
         mask = mask.squeeze()
 
         if not cs_img is None:
-            cs_img = TF.pil_to_tensor(cs_img).float()
+            cs_img = convert_pil_to_tensor(cs_img).float()
 
         if not cs_img is None:
             return img, mask, cs_img
@@ -89,7 +104,7 @@ class Test_Data_Transforms(Data_Transforms):
             return img, mask
 
 class Sen1Floods11_Dataset(Dataset):
-    def __init__(self, base_dir, csv_path, is_train=True, crowd_points_path=None):
+    def __init__(self, base_dir, csv_path, is_train=True, crowd_points_path=None, annotation_level=None):
         self.crowd_points_path = crowd_points_path
 
         if is_train:
@@ -110,6 +125,9 @@ class Sen1Floods11_Dataset(Dataset):
         for i in range(csv_file.shape[0]):
             data_path = os.path.join(base_dir, csv_file[i][0])
             mask_path = os.path.join(base_dir, csv_file[i][1])
+
+            if annotation_level == 'coarse':
+                mask_path = mask_path.replace('QC_v2', 'QC_v2_shrunk')
 
             if self.crowd_points_path:
                 # load points and 
@@ -157,8 +175,15 @@ if __name__ == '__main__':
         data_path = os.path.join(base_dir, csv_file[i][0])
         mask_path = os.path.join(base_dir, csv_file[i][1])
 
-        img = np.nan_to_num(rasterio.open(data_path).read())
-        mask = np.nan_to_num(rasterio.open(mask_path).read())
+        # img = np.nan_to_num(rasterio.open(data_path).read())
+        # mask = np.nan_to_num(rasterio.open(mask_path).read())
+
+        img = load_image(data_path)
+        mask = load_target(mask_path)
+        T = Data_Transforms()
+        timg, tmask = T(img, mask)
+        exit()
+        # import pdb; pdb.set_trace()
 
         min_val = min(img.min(), min_val)
         max_val = max(img.max(), max_val)

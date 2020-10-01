@@ -35,6 +35,15 @@ def create_cs_img(h, w, cs_points):
     cs_img = Image.fromarray(cs_img.astype(np.uint8))
     return cs_img
 
+def convert_pil_to_tensor(pil_img):
+    np_img = np.array(pil_img)
+    if len(np_img.shape) == 3:
+        np_img = np_img.transpose(2, 0, 1)
+    else:
+        np_img = np_img[np.newaxis,:,:]
+    tensor = torch.from_numpy(np_img)
+    return tensor
+
 
 class Data_Transforms(object):
     def __init__(self, crop_size=[256, 256]):
@@ -71,14 +80,14 @@ class Data_Transforms(object):
                 cs_img = TF.vflip(cs_img)
 
         for idx in range(len(images)):
-            images[idx] = TF.pil_to_tensor(images[idx]).float()
+            images[idx] = convert_pil_to_tensor(images[idx]).float()
         img = torch.stack(images, dim=0).squeeze()
 
-        mask = TF.pil_to_tensor(mask).long()
+        mask = convert_pil_to_tensor(mask).long()
         mask = mask.squeeze()
 
         if not cs_img is None:
-            cs_img = TF.pil_to_tensor(cs_img).float()
+            cs_img = convert_pil_to_tensor(cs_img).float()
 
         if not cs_img is None:
             return img, mask, cs_img
@@ -89,14 +98,14 @@ class Data_Transforms(object):
 class Test_Data_Transforms(Data_Transforms):
     def __call__(self, images, mask, cs_img=None):
         for idx in range(len(images)):
-            images[idx] = TF.pil_to_tensor(images[idx]).float()
+            images[idx] = convert_pil_to_tensor(images[idx]).float()
         img = torch.stack(images, dim=0).squeeze()
 
-        mask = TF.pil_to_tensor(mask).long()
+        mask = convert_pil_to_tensor(mask).long()
         mask = mask.squeeze()
 
         if not cs_img is None:
-            cs_img = TF.pil_to_tensor(cs_img).float()
+            cs_img = convert_pil_to_tensor(cs_img).float()
 
         if not cs_img is None:
             return img, mask, cs_img
@@ -105,13 +114,13 @@ class Test_Data_Transforms(Data_Transforms):
 
 
 class Sen2Floods11_Dataset(Dataset):
-    def __init__(self, base_dir, csv_path, is_train=True, crowd_points_path=None):
+    def __init__(self, base_dir, csv_path, is_train=True, crowd_points_path=None, annotation_level=None):
         self.crowd_points_path = crowd_points_path
 
         if is_train:
             self.transforms = Data_Transforms()
         else:
-            self.transforms = None
+            self.transforms = Test_Data_Transforms()
 
         # get image paths
         csv_file = pd.read_csv(csv_path).to_numpy()
@@ -125,7 +134,10 @@ class Sen2Floods11_Dataset(Dataset):
         self.dataset = []
         for i in range(csv_file.shape[0]):
             data_path = os.path.join(base_dir, csv_file[i][0]).replace('S1', 'S2')
+
             mask_path = os.path.join(base_dir, csv_file[i][1])
+            if annotation_level == 'coarse':
+                mask_path = mask_path.replace('QC_v2', 'QC_v2_shrunk')
 
             if self.crowd_points_path:
                 # load points and 

@@ -27,11 +27,15 @@ def get_model(model_name, dataset_name, cs_points=None):
         n_channels = 2
     elif dataset_name[:4] == 'sen2':
         n_channels = 13
+    elif dataset_name[:4] == 'syn':
+        n_channels = 1
     else:
         print('FATAL: Invalid dataset name "{}"'.format(dataset_name))
         exit()
 
     if model_name == 'unet':
+        model = UNet_Model(n_channels=n_channels, n_classes=2)
+    elif model_name == 'syn':
         model = UNet_Model(n_channels=n_channels, n_classes=2)
     elif model_name == 'fcn':
         model = models.segmentation.fcn_resnet50(pretrained=False, num_classes=2, pretrained_backbone=False)

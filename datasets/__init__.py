@@ -2,16 +2,18 @@ import os
 
 from .sen1floods11_dataset import Sen1Floods11_Dataset
 from .sen2floods11_dataset import Sen2Floods11_Dataset
+from .synthetic_dataset import Synthetic_Dataset
 
 name_to_dataset = {'sen1': Sen1Floods11_Dataset,
                    'sen2': Sen2Floods11_Dataset,
+                   'syn': Synthetic_Dataset,
                   }
 
 
-def get_dataset(dataset_name, base_dir, csv_file_path, is_train, crowd_points_path):
+def get_dataset(dataset_name, base_dir, csv_file_path, is_train, crowd_points_path, annotation_level):
     dataset_name = dataset_name.lower()
     dataset_object = name_to_dataset[dataset_name]
-    return dataset_object(base_dir, csv_file_path, is_train, crowd_points_path)
+    return dataset_object(base_dir, csv_file_path, is_train, crowd_points_path, annotation_level)
 
 def get_cs_points_path(base_dir, cluster_type, noise_type):
     try:
